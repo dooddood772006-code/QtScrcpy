@@ -1,0 +1,49 @@
+name: Build Arabic
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Get QtScrcpyCore and apply Arabic patch
+        shell: bash
+        run: |
+          SHA=$(git ls-tree HEAD QtScrcpy/QtScrcpyCore | awk '{print $3}')
+          rm -rf QtScrcpy/QtScrcpyCore
+          git clone https://github.com/barry-ran/QtScrcpyCore QtScrcpy/QtScrcpyCore
+          git -C QtScrcpy/QtScrcpyCore checkout $SHA
+          git -C QtScrcpy/QtScrcpyCore apply --whitespace=nowarn ../../arabic-input.patch
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.1.1
+        with:
+          version: 5.15.2
+          target: desktop
+          arch: win64_msvc2019_64
+
+      - name: Build
+        shell: cmd
+        env:
+          ENV_VCVARSALL: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat'
+        run: |
+          for %%I in ("%QT_ROOT_DIR%\..") do set ENV_QT_PATH=%%~fI
+          call python ci\generate-version.py
+          call "ci\win\build_for_win.bat" RelWithDebInfo x64
+
+      - name: Package
+        shell: cmd
+        env:
+          ENV_VCVARSALL: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat'
+          ENV_VCINSTALL: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC'
+        run: |
+          for %%I in ("%QT_ROOT_DIR%\..") do set ENV_QT_PATH=%%~fI
+          call ci\win\publish_for_win.bat x64 ..\build\QtScrcpy-arabic
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QtScrcpy-arabic
+          path: ci\build\QtScrcpy-arabic

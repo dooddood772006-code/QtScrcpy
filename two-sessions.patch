@@ -57,7 +57,7 @@ index f42773c..2fb2fe3 100644
 +    }
      return true;
  }
-
+ 
  bool DeviceManage::disconnectDevice(const QString &serial)
  {
      bool ret = false;
@@ -73,7 +73,7 @@ index f42773c..2fb2fe3 100644
          auto it = m_devices.find(serial);
          if (it->data()) {
 @@ -84,6 +110,15 @@ bool DeviceManage::disconnectDevice(const QString &serial)
-
+ 
  void DeviceManage::disconnectAllDevice()
  {
 +    QMapIterator<QString, QPointer<IDevice>> si(m_secondaryDevices);
@@ -93,7 +93,7 @@ index 51c9d83..54249e9 100644
 --- a/src/devicemanage/devicemanage.h
 +++ b/src/devicemanage/devicemanage.h
 @@ -30,6 +30,7 @@ private:
-
+ 
  private:
      QMap<QString, QPointer<IDevice>> m_devices;
 +    QMap<QString, QPointer<IDevice>> m_secondaryDevices;

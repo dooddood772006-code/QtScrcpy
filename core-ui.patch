@@ -1,0 +1,27 @@
+diff --git a/include/QtScrcpyCore.h b/include/QtScrcpyCore.h
+index 1e67de1..918c6c5 100644
+--- a/include/QtScrcpyCore.h
++++ b/include/QtScrcpyCore.h
+@@ -163,0 +164 @@ signals:
++    void secondaryDeviceConnected(bool success, const QString& serial, const QSize& size, qsc::IDevice* device);
+diff --git a/src/devicemanage/devicemanage.cpp b/src/devicemanage/devicemanage.cpp
+index 2fb2fe3..09041b3 100644
+--- a/src/devicemanage/devicemanage.cpp
++++ b/src/devicemanage/devicemanage.cpp
+@@ -43 +43 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
+-        if (m_secondaryDevices.contains(params.serial)) {
++        if (!m_secondaryDevices.value(params.serial).isNull()) {
+@@ -46,0 +47,2 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
++        // 第二会话只做镜像，不再启动应用，避免在主屏上重复打开
++        params.startApp.clear();
+@@ -51,0 +54,4 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
++        // 第二会话只显示主屏：不创建虚拟屏、不启动应用
++        params.newDisplay.clear();
++        params.startApp.clear();
++        params.displayId = 0;
+@@ -75,0 +82,5 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
++    } else {
++        connect(device, &Device::deviceConnected, this,
++                [this, device](bool success, const QString &serial, const QString &, const QSize &size) {
++                    emit secondaryDeviceConnected(success, serial, size, device);
++                });

@@ -1,0 +1,104 @@
+From b317bfe3348eda6cf09a9e28454b60e0d5221c8d Mon Sep 17 00:00:00 2001
+From: dev <a@b.c>
+Date: Sat, 21 Nov 2026 10:17:18 +0000
+Subject: [PATCH] allow a second session per device on a separate port
+
+---
+ src/devicemanage/devicemanage.cpp | 45 +++++++++++++++++++++++++++----
+ src/devicemanage/devicemanage.h   |  1 +
+ 2 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/devicemanage/devicemanage.cpp b/src/devicemanage/devicemanage.cpp
+index f42773c..2fb2fe3 100644
+--- a/src/devicemanage/devicemanage.cpp
++++ b/src/devicemanage/devicemanage.cpp
+@@ -37,8 +37,19 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
+     if (params.serial.trimmed().isEmpty()) {
+         return false;
+     }
+-    if (m_devices.contains(params.serial)) {
+-        return false;
++    // 同一台设备允许第二个会话（用于同时显示虚拟屏和主屏）
++    const bool secondary = m_devices.contains(params.serial);
++    if (secondary) {
++        if (m_secondaryDevices.contains(params.serial)) {
++            qInfo("only one extra session per device is supported");
++            return false;
++        }
++        params.localPort = getFreePort();
++        if (0 == params.localPort) {
++            qInfo("no free port for the second session");
++            return false;
++        }
++        qInfo("second session for %s on port %d", qPrintable(params.serial), params.localPort);
+     }
+     if (DM_MAX_DEVICES_NUM < m_devices.size()) {
+         qInfo("over the maximum number of connections");
+@@ -59,19 +70,34 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
+     }
+     */
+     IDevice *device = new Device(params);
+-    connect(device, &Device::deviceConnected, this, &DeviceManage::onDeviceConnected);
+-    connect(device, &Device::deviceDisconnected, this, &DeviceManage::onDeviceDisconnected);
++    if (!secondary) {
++        connect(device, &Device::deviceConnected, this, &DeviceManage::onDeviceConnected);
++        connect(device, &Device::deviceDisconnected, this, &DeviceManage::onDeviceDisconnected);
++    }
+     if (!device->connectDevice()) {
+         delete device;
+         return false;
+     }
+-    m_devices[params.serial] = device;
++    if (secondary) {
++        // 第二会话不接入管理器的信号，避免断开它时误删主会话
++        m_secondaryDevices[params.serial] = device;
++    } else {
++        m_devices[params.serial] = device;
++    }
+     return true;
+ }
+
+ bool DeviceManage::disconnectDevice(const QString &serial)
+ {
+     bool ret = false;
++    if (m_secondaryDevices.contains(serial)) {
++        auto sit = m_secondaryDevices.find(serial);
++        if (sit->data()) {
++            delete sit->data();
++        }
++        m_secondaryDevices.remove(serial);
++        ret = true;
++    }
+     if (!serial.isEmpty() && m_devices.contains(serial)) {
+         auto it = m_devices.find(serial);
+         if (it->data()) {
+@@ -84,6 +110,15 @@ bool DeviceManage::disconnectDevice(const QString &serial)
+
+ void DeviceManage::disconnectAllDevice()
+ {
++    QMapIterator<QString, QPointer<IDevice>> si(m_secondaryDevices);
++    while (si.hasNext()) {
++        si.next();
++        if (si.value()) {
++            delete si.value();
++        }
++    }
++    m_secondaryDevices.clear();
++
+     QMapIterator<QString, QPointer<IDevice>> i(m_devices);
+     while (i.hasNext()) {
+         i.next();
+diff --git a/src/devicemanage/devicemanage.h b/src/devicemanage/devicemanage.h
+index 51c9d83..54249e9 100644
+--- a/src/devicemanage/devicemanage.h
++++ b/src/devicemanage/devicemanage.h
+@@ -30,6 +30,7 @@ private:
+
+ private:
+     QMap<QString, QPointer<IDevice>> m_devices;
++    QMap<QString, QPointer<IDevice>> m_secondaryDevices;
+     quint16 m_localPortStart = 27183;
+     QString m_script;
+ };
+-- 
+2.43.0

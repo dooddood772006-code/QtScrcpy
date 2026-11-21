@@ -1,0 +1,13 @@
+diff --git a/src/devicemanage/devicemanage.cpp b/src/devicemanage/devicemanage.cpp
+index 2fb2fe3..041ca4a 100644
+--- a/src/devicemanage/devicemanage.cpp
++++ b/src/devicemanage/devicemanage.cpp
+@@ -44,6 +44,8 @@ bool DeviceManage::connectDevice(qsc::DeviceParams params)
+             qInfo("only one extra session per device is supported");
+             return false;
+         }
++        // 第二会话只做镜像，不再启动应用，避免在主屏上重复打开
++        params.startApp.clear();
+         params.localPort = getFreePort();
+         if (0 == params.localPort) {
+             qInfo("no free port for the second session");

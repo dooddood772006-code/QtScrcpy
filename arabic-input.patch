@@ -1,0 +1,28 @@
+diff --git a/src/device/controller/inputconvert/inputconvertnormal.cpp b/src/device/controller/inputconvert/inputconvertnormal.cpp
+index b503131..3677214 100644
+--- a/src/device/controller/inputconvert/inputconvertnormal.cpp
++++ b/src/device/controller/inputconvert/inputconvertnormal.cpp
+@@ -150,6 +150,23 @@ void InputConvertNormal::keyEvent(const QKeyEvent *from, const QSize &frameSize,
+         return;
+     }
+ 
++    // Non-ASCII characters (Arabic, Persian, Hebrew, Cyrillic, ...) have no Android
++    // keycode, so they can't be sent as key events. Put the character in the device
++    // clipboard and paste it instead. Shortcuts (Ctrl/Alt/Meta) are left untouched.
++    if (!(from->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
++        QString text = from->text();
++        if (!text.isEmpty() && text.at(0).unicode() > 127 && text.at(0).isPrint()) {
++            if (QEvent::KeyPress == from->type()) {
++                ControlMsg *clipMsg = new ControlMsg(ControlMsg::CMT_SET_CLIPBOARD);
++                if (clipMsg) {
++                    clipMsg->setSetClipboardMsgData(text, true); // true = paste right after setting
++                    sendControlMsg(clipMsg);
++                }
++            }
++            return;
++        }
++    }
++
+     bool repeat = from->isAutoRepeat();
+ 
+     // action

@@ -9,7 +9,7 @@ jobs:
           fetch-depth: 0
           submodules: false
 
-      - name: Get QtScrcpyCore and apply Arabic patch
+      - name: Get QtScrcpyCore and apply patches
         shell: bash
         run: |
           SHA=$(git ls-tree HEAD QtScrcpy/QtScrcpyCore | awk '{print $3}')
@@ -17,6 +17,7 @@ jobs:
           git clone https://github.com/barry-ran/QtScrcpyCore QtScrcpy/QtScrcpyCore
           git -C QtScrcpy/QtScrcpyCore checkout $SHA
           git -C QtScrcpy/QtScrcpyCore apply --whitespace=nowarn ../../arabic-input.patch
+          git -C QtScrcpy/QtScrcpyCore apply --whitespace=nowarn ../../two-sessions.patch
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.1.1
